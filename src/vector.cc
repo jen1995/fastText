@@ -21,6 +21,14 @@ namespace fasttext {
 
 Vector::Vector(int64_t m) : data_(m) {}
 
+Vector::Vector(const std::vector<double>& other) {
+  data_.reserve(other.size());
+
+  for (const real& elem : other) {
+    data_.push_back(static_cast<real>(elem));
+  }
+}
+
 Vector::Vector(Vector&& other) noexcept : data_(std::move(other.data_)) {}
 
 Vector& Vector::operator=(Vector&& other) {
@@ -43,6 +51,13 @@ real Vector::norm() const {
 void Vector::mul(real a) {
   for (int64_t i = 0; i < size(); i++) {
     data_[i] *= a;
+  }
+}
+
+void Vector::mulVectors(const Vector& source) {
+  assert(size() == source.size());
+  for (int64_t i = 0; i < size(); i++) {
+    data_[i] *= source.data_[i];
   }
 }
 

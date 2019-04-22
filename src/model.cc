@@ -12,12 +12,36 @@
 #include <assert.h>
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <random>
+
+using std::vector;
 
 namespace fasttext {
 
 constexpr int64_t SIGMOID_TABLE_SIZE = 512;
 constexpr int64_t MAX_SIGMOID = 8;
 constexpr int64_t LOG_TABLE_SIZE = 512;
+
+
+vector<double> GenerateD(int64_t outputSize) {
+
+    vector<double> vec(outputSize);
+
+    const vector<double> samples{ 1, -1 };
+    const vector<double> probabilities{ 0.9, 0.1 };
+
+    std::default_random_engine generator;
+    std::discrete_distribution<int> distribution(probabilities.begin(), probabilities.end());
+
+    vector<int> indices(vec.size());
+    std::generate(indices.begin(), indices.end(), [&generator, &distribution]() { return distribution(generator); });
+
+    std::transform(indices.begin(), indices.end(), vec.begin(), [&samples](int index) { return samples[index]; });
+    return vec;
+}
 
 Model::Model(
     std::shared_ptr<Matrix> wi,
@@ -28,7 +52,15 @@ Model::Model(
       output_(wo->size(0)),
       grad_(args->dim),
       rng(seed),
-      quant_(false) {
+      quant_(false),
+      diagonalMatrix_(args->dim)
+       {
+  std::ofstream ofs("output.txt");
+  vector<double> vec = GenerateD(args->dim);
+
+  diagonalMatrix_ = Vector(vec);
+  ofs << diagonalMatrix_;
+
   wi_ = wi;
   wo_ = wo;
   args_ = args;
@@ -55,16 +87,41 @@ void Model::setQuantizePointer(
 }
 
 real Model::binaryLogistic(int32_t target, bool label, real lr) {
-  real score = sigmoid(wo_->dotRow(hidden_, target));
+
+  Vector wD(hidden_.size());
+  wD.addVector(hidden_);
+  wD.mulVectors(diagonalMatrix_);
+
+  // real score = sigmoid(wo_->dotRow(hidden_, target));
+  real score = sigmoid(wi_->dotRow(wD, target));
   real alpha = lr * (real(label) - score);
-  grad_.addRow(*wo_, target, alpha);
-  wo_->addRow(hidden_, target, alpha);
+
+  Vector wj_D(hidden_.size());
+  wj_D.addRow(*wi_, target, alpha);
+  wj_D.mulVectors(diagonalMatrix_);
+  grad_.addVector(wj_D);
+
+  // wo_->addRow(hidden_, target, alpha);
+  wi_->addRow(wD, target, alpha);
+
   if (label) {
     return -log(score);
   } else {
     return -log(1.0 - score);
   }
 }
+
+// real Model::binaryLogistic(int32_t target, bool label, real lr) {
+//   real score = sigmoid(wo_->dotRow(hidden_, target));
+//   real alpha = lr * (real(label) - score);
+//   grad_.addRow(*wo_, target, alpha);
+//   wo_->addRow(hidden_, target, alpha);
+//   if (label) {
+//     return -log(score);
+//   } else {
+//     return -log(1.0 - score);
+//   }
+// }
 
 real Model::negativeSampling(int32_t target, real lr) {
   real loss = 0.0;

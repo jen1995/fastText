@@ -25,8 +25,11 @@ class Vector {
 
  public:
   explicit Vector(int64_t);
+  explicit Vector(const std::vector<double>&);
   Vector(const Vector&) = delete;
   Vector(Vector&&) noexcept;
+  
+
   Vector& operator=(const Vector&) = delete;
   Vector& operator=(Vector&&);
 
@@ -51,6 +54,7 @@ class Vector {
   real norm() const;
   void addVector(const Vector& source);
   void addVector(const Vector&, real);
+  void mulVectors(const Vector& source);
   void addRow(const Matrix&, int64_t);
   void addRow(const QMatrix&, int64_t);
   void addRow(const Matrix&, int64_t, real);
