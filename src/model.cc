@@ -27,21 +27,15 @@ constexpr int64_t LOG_TABLE_SIZE = 512;
 
 
 vector<double> GenerateD(int64_t outputSize) {
-
-    vector<double> vec(outputSize);
-
-    const vector<double> samples{ 1, -1 };
-    const vector<double> probabilities{ 0.9, 0.1 };
-
-    std::default_random_engine generator;
-    std::discrete_distribution<int> distribution(probabilities.begin(), probabilities.end());
-
-    vector<int> indices(vec.size());
-    std::generate(indices.begin(), indices.end(), [&generator, &distribution]() { return distribution(generator); });
-
-    std::transform(indices.begin(), indices.end(), vec.begin(), [&samples](int index) { return samples[index]; });
+    vector<double> vec(outputSize, 1);
+    double percent = 50;
+    int number_of_neg_components = static_cast<int>(percent / 100 * outputSize);
+    for (int i = 0; i < number_of_neg_components; ++i) {
+        vec[i] *= -1;
+    }
     return vec;
 }
+
 
 Model::Model(
     std::shared_ptr<Matrix> wi,
